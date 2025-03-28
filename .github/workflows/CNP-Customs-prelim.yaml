@@ -36,6 +36,13 @@ jobs:
         run: |
           DEBUG=pw:api timeout 1800 python download.py || DEBUG=pw:api timeout 1800 python download.py 2&>1
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-latest-data
+          path: "*.html"
+          retention-days: 7
+          
       - name: FTP upload
         continue-on-error: true
         run: |
