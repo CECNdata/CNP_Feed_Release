@@ -37,7 +37,12 @@ jobs:
           for file in `ls -d tmp/*Customs*`;do (base_dir=${file} python3 gather_latest.py);done
           ls -la ./
           
-          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-latest-data
+          path: "*.csv"
+          retention-days: 7
           
       - name: FTP upload
         continue-on-error: true
