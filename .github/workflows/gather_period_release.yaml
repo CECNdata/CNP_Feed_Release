@@ -51,6 +51,13 @@ jobs:
           echo "put ${filename} ${{ secrets.FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2)
           #rm -rf ${filename} &> /dev/null
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-data
+          path: ${{ env.zip }}.zip
+          retention-days: 7
+          
       #- name: Commit report
         #continue-on-error: true
         #run: |
