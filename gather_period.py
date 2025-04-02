@@ -64,6 +64,8 @@ for f in filter_files:
     df_date=df["时间"]
     df_date=df.pop("时间")
     df.insert(0,'时间',df_date)
+    if "数据年月" in df.columns:
+        df = df.drop(columns=["数据年月"])
 
     # write to 1 csv
     if not os.path.exists(target_path):
