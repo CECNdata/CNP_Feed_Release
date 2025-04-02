@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true
         run: |
           export filename=${{ env.zip }}.zip
-          zip -r ${filename} *.csv 
+          zip -r ${filename} *HS6*.csv 
       #    echo "put ${filename} ${{ secrets.CNP_8_HISTORY }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa"  -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2)
 
       #- name: FTP upload twice
