@@ -65,7 +65,9 @@ for f in filter_files:
     # fill zero digit
     print(f)
     df=pd.read_csv(os.path.join(base_dir,f))
-    df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
+    try:
+        df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
+    except:pass
 
     # add date column
     date = re.findall("20\d{2}_\d{1,2}",f)[0] #year_startMonth_endMonth
