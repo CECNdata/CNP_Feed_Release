@@ -66,3 +66,9 @@ jobs:
           #git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
           #git push -f origin main
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-latest-data
+          path: "*.zip"
+          retention-days: 7
