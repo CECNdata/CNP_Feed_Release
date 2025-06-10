@@ -5,7 +5,7 @@ on:
     inputs:
       month_range:
         description: 'Month range for the upload'
-        required: false
+        required: true
         default: '3'
   schedule:
     - cron: '*/30 * * * *'
@@ -42,6 +42,7 @@ jobs:
           rm requirements.txt
       - name: Do the gather
         run: |
+          export month_range="${month_range:-3}"
           git clone ${github_repo} tmp
           for file in `ls -d tmp/*Customs*HS4*`;do (base_dir=${file} python3 gather_period_hs46.py);done
           ls -la ./
