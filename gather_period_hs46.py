@@ -35,8 +35,6 @@ def get_last_month(month):
     last_month  = month.replace(day=1)
     last_month -= datetime.timedelta(days=1)
     return(last_month)
-today   = datetime.datetime.now(datetime.UTC)
-cn_date = today + datetime.timedelta(hours = 8)
 
 
 
