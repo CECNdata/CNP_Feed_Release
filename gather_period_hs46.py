@@ -59,10 +59,53 @@ for file in files:
         pass
 
 # sort by download time
-filter_files = sorted(filter_files, key=lambda x: datetime.datetime.strptime(re.findall("20\d{2}_\d{1,2}_\d{1,2}", x)[0], "%Y_%m_%d"), reverse=True)
-filter_files = filter_files[:month_range]
+from collections import defaultdict
+from dateutil.relativedelta import relativedelta
+# 提取发布日期：_YYYY_MM_DD_
+def extract_release_date(filename):
+    match = re.search(r'_(20\d{2}_\d{1,2}_\d{1,2})_', filename)
+    if not match:
+        return None
+    return datetime.datetime.strptime(match.group(1), "%Y_%m_%d").date()
+
+# 提取更新时间：.YYYYMMDDHHMMSST
+def extract_update_time(filename):
+    match = re.search(r'\.(\d{14})T', filename)
+    if not match:
+        return None
+    return datetime.datetime.strptime(match.group(1), "%Y%m%d%H%M%S")
+
+
+# 收集所有文件的 release/update 日期
+file_infos = []
+for f in filter_files:
+    release_date = extract_release_date(f)
+    update_time = extract_update_time(f)
+    if release_date and update_time:
+        file_infos.append((f, release_date, update_time))
+
+# 1. 找到 update_time 最大的文件
+latest_file = max(file_infos, key=lambda x: x[2])
+latest_release_date = latest_file[1]
+
+# 2. 构造目标 release_date 日期集合（以月为单位）
+target_dates = set()
+for i in range(month_range + 1):  # 包含当前月
+    d = latest_release_date - relativedelta(months=i)
+    target_dates.add(datetime.date(d.year, d.month, d.day))
+
+# 3. 在每个 release_date 中找出 update_time 最大的文件
+best_files = {}
+for f, r_date, u_time in file_infos:
+    if r_date in target_dates:
+        if (r_date not in best_files) or (u_time > best_files[r_date][1]):
+            best_files[r_date] = (f, u_time)
+
+# 4. 输出文件名（从新到旧排序）
+filter_files = [info[0] for r, info in sorted(best_files.items(), key=lambda x: x[0], reverse=True)]
 
 for f in filter_files:
+    print(f)
     # fill zero digit
     df=pd.read_csv(os.path.join(base_dir,f))
     try:
