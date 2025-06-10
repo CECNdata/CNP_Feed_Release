@@ -35,7 +35,7 @@ def get_last_month(month):
     last_month  = month.replace(day=1)
     last_month -= datetime.timedelta(days=1)
     return(last_month)
-today   = datetime.datetime.utcnow()
+today   = datetime.datetime.now(datetime.UTC)
 cn_date = today + datetime.timedelta(hours = 8)
 
 
@@ -45,8 +45,8 @@ files=os.listdir(base_dir)
 files=sorted(files, key=lambda x: x.split(".")[-2], reverse=True) # sort by download time
 for file in files:
     try:
-        date = re.findall("20\d{2}_\d{1,2}_\d{1,2}",file)[0] #year_startMonth_endMonth
-        part = re.findall("part\d*",file)
+        date = re.findall(r"20\d{2}\_\d{1,2}\_\d{1,2}",file)[0] #year_startMonth_endMonth
+        part = re.findall(r"part\d*",file)
         if len(part)==0:
             date_part=str(date)
         else:
@@ -63,10 +63,10 @@ from collections import defaultdict
 from dateutil.relativedelta import relativedelta
 # 提取发布日期：_YYYY_MM_DD_
 def extract_release_date(filename):
-    match = re.search(r'_(20\d{2}_\d{1,2}_\d{1,2})_', filename)
+    match = re.search(r'_(20\d{2}\_\d{1,2})\_', filename)
     if not match:
         return None
-    return datetime.datetime.strptime(match.group(1), "%Y_%m_%d").date()
+    return datetime.datetime.strptime(match.group(1), "%Y_%m").date()
 
 # 提取更新时间：.YYYYMMDDHHMMSST
 def extract_update_time(filename):
@@ -85,12 +85,12 @@ for f in filter_files:
         file_infos.append((f, release_date, update_time))
 
 # 1. 找到 update_time 最大的文件
-latest_file = max(file_infos, key=lambda x: x[2])
-latest_release_date = latest_file[1]
+latest_file = max(file_infos, key=lambda x: (x[1], x[2]))
+latest_release_date=latest_file[1]
 
 # 2. 构造目标 release_date 日期集合（以月为单位）
 target_dates = set()
-for i in range(month_range + 1):  # 包含当前月
+for i in range(month_range):
     d = latest_release_date - relativedelta(months=i)
     target_dates.add(datetime.date(d.year, d.month, d.day))
 
@@ -101,11 +101,9 @@ for f, r_date, u_time in file_infos:
         if (r_date not in best_files) or (u_time > best_files[r_date][1]):
             best_files[r_date] = (f, u_time)
 
-# 4. 输出文件名（从新到旧排序）
 filter_files = [info[0] for r, info in sorted(best_files.items(), key=lambda x: x[0], reverse=True)]
 
 for f in filter_files:
-    print(f)
     # fill zero digit
     df=pd.read_csv(os.path.join(base_dir,f))
     try:
@@ -113,10 +111,10 @@ for f in filter_files:
     except:pass
 
     # add date column
-    date = re.findall("20\d{2}_\d{1,2}",f)[0] #year_startMonth_endMonth
+    date = re.findall(r"20\d{2}_\d{1,2}",f)[0] #year_startMonth_endMonth
     date = date+"_1"
     date = datetime.datetime.strptime(date,"%Y_%m_%d")
-    target_path=target_path.replace("YYYY_MM",datetime.datetime.strftime(date,"%Y_%m"))
+    target_path_final=target_path.replace("YYYY_MM",datetime.datetime.strftime(date,"%Y_%m"))
     date = datetime.datetime.strftime(date,"%Y-%m-%d")
 
     df["时间"]=date
@@ -127,7 +125,7 @@ for f in filter_files:
         df = df.drop(columns=["数据年月"])
 
     # write to 1 csv
-    if not os.path.exists(target_path):
-        df.to_csv(target_path, index=False)
+    if not os.path.exists(target_path_final):
+        df.to_csv(target_path_final, index=False)
     else:
-        df.to_csv(target_path, mode='a', header=False,  index=False)
+        df.to_csv(target_path_final, mode='a', header=False,  index=False)
