@@ -2,6 +2,11 @@ name: 'Gather_hs6_latest'
 
 on:
   workflow_dispatch:
+    inputs:
+      month_range:
+        description: 'Month range for the upload'
+        required: false
+        default: '3'
   schedule:
     - cron: '*/30 * * * *'
 
@@ -36,7 +41,7 @@ jobs:
       - name: Do the gather
         run: |
           git clone ${github_repo} tmp
-          for file in `ls -d tmp/*Customs*HS6*`;do (base_dir=${file} python3 gather_latest.py);done
+          for file in `ls -d tmp/*Customs*HS6*`;do (base_dir=${file} python3 gather_period_hs46.py --month_range ${{ github.event.inputs.month_range }} );done
           ls -la ./
           for f in *Customs*HS6*; do mv "$f" "$(echo "$f" | sed -E 's/CNP-Customs-total-HS6-(export|import)-(RMB|USD)_([0-9]{4})_([0-9]{2})\.csv/hs6_\L\2\E_\1_all_\3\4\4_001.csv/' | sed -E 's/export/exp/; s/import/imp/;')"; done
           ls -la ./
