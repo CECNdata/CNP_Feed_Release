@@ -41,6 +41,7 @@ jobs:
           rm requirements.txt
       - name: Do the gather
         run: |
+          export month_range="${month_range:-3}"
           git clone ${github_repo} tmp
           for file in `ls -d tmp/*Customs*HS6*`;do (base_dir=${file} python3 gather_period_hs46.py);done
           ls -la ./
