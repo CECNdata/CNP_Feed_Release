@@ -105,9 +105,13 @@ for f in filter_files:
     # fill zero digit
     df=pd.read_csv(os.path.join(base_dir,f))
     try:
-        df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
+        if '商品编码' in df.columns:
+            df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
+        elif 'Commodity code' in df.columns:
+            df['Commodity code']=df['Commodity code'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
     except:pass
 
+    """
     # add date column
     date = re.findall(r"20\d{2}_\d{1,2}",f)[0] #year_startMonth_endMonth
     date = date+"_1"
@@ -115,13 +119,16 @@ for f in filter_files:
     target_path_final=target_path.replace("YYYY_MM",datetime.datetime.strftime(date,"%Y_%m"))
     date = datetime.datetime.strftime(date,"%Y-%m-%d")
 
+
+    if ""
     df["时间"]=date
     df_date=df["时间"]
     df_date=df.pop("时间")
     df.insert(0,'时间',df_date)
     if "数据年月" in df.columns:
         df = df.drop(columns=["数据年月"])
-
+    """
+    
     # write to 1 csv
     if not os.path.exists(target_path_final):
         df.to_csv(target_path_final, index=False)
