@@ -66,7 +66,10 @@ for f in filter_files:
     print(f)
     df=pd.read_csv(os.path.join(base_dir,f))
     try:
-        df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
+        if '商品编码' in df.columns:
+            df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
+        elif 'Commodity code' in df.columns:
+            df['Commodity code']=df['Commodity code'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
     except:pass
 
     # add date column
@@ -74,12 +77,13 @@ for f in filter_files:
     date = date+"_1"
     date = datetime.datetime.strptime(date,"%Y_%m_%d")
     date = datetime.datetime.strftime(date,"%Y-%m-%d")
-    df["时间"]=date
-    df_date=df["时间"]
-    df_date=df.pop("时间")
-    df.insert(0,'时间',df_date)
-    if "数据年月" in df.columns:
-        df = df.drop(columns=["数据年月"])
+    if '商品编码' in df.columns:
+        df["时间"]=date
+        df_date=df["时间"]
+        df_date=df.pop("时间")
+        df.insert(0,'时间',df_date)
+        if "数据年月" in df.columns:
+            df = df.drop(columns=["数据年月"])
 
     # write to 1 csv
     if not os.path.exists(target_path):
