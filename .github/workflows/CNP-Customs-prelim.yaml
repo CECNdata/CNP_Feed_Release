@@ -1,0 +1,54 @@
+name: 'CNP-Customs-prelim'
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */4 18-25 * *'
+    
+permissions: write-all
+
+jobs:
+  Download:
+    runs-on: ubuntu-latest
+    steps:
+    
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          curl https://raw.githubusercontent.com/CECNdata/CNP_Feed_Release/main/download_prelim_main.py -o download.py
+          curl -O https://cdn.jsdelivr.net/gh/requireCool/stealth.min.js/stealth.min.js
+          sudo apt-get install sshpass -y
+          pip install pipreqs
+          pipreqs .
+          pip install -r requirements.txt
+          rm requirements.txt
+          npx playwright install-deps firefox
+          python -m playwright install firefox
+          #npx playwright install-deps webkit
+          #python -m playwright install webkit
+
+      - name: download
+        continue-on-error: true
+        run: |
+          DEBUG=pw:api timeout 1800 python download.py || DEBUG=pw:api timeout 1800 python download.py 2&>1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-latest-data
+          path: "*.html"
+          retention-days: 7
+          
+      - name: FTP upload
+        continue-on-error: true
+        run: |
+          sudo chmod -R 777 download ; cd download ; for filename in `ls -d *html `;do ( echo "put ${filename} ${{ secrets.Prelim_FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2) );done
+          
+      - name: FTP upload second
+        continue-on-error: true
+        run: |
+          sudo chmod -R 777 download ; cd download ; for filename in `ls -d *html `;do ( echo "put ${filename} ${{ secrets.Prelim_FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2) );done
