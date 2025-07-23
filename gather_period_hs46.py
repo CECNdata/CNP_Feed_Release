@@ -129,8 +129,15 @@ for f in filter_files:
             df = df.drop(columns=["数据年月"])
             
     last_col = df.columns[-1]
+    
     # 去除逗号并转换为数字
-    df[last_col] = df[last_col].astype(str).str.replace(',', '').astype(float)
+    def safe_convert(val):
+        try:
+            return float(str(val).replace(',', ''))
+        except ValueError:
+            return val  # 保留原始值
+
+    df[last_col] = df[last_col].apply(safe_convert)
 
     
     
