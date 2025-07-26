@@ -7,7 +7,7 @@ import datetime
 import json
 
 ## diy option
-fill_zero_bit = int(os.getenv("fill_zero_bit", 2))
+#fill_zero_bit = int(os.getenv("fill_zero_bit", 2))
 base_dir   = os.getenv("base_dir", "./CNP-Customs-total-export-RMB")
 target_dir = os.getenv("target_dir", "./latest_backfill")
 mappings_path= os.getenv("mappings_path", "./tmp/mappings.json")
@@ -70,12 +70,14 @@ for f in filter_files:
     target_filename=fname[0]+"_"+fname[1]+fname[2].zfill(2)+".csv"
     target_path=os.path.join(target_dir,target_filename)
     df=pd.read_csv(os.path.join(base_dir,f))
+    """
     try:
         if '商品编码' in df.columns:
             df['商品编码']=df['商品编码'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
         elif 'Commodity code' in df.columns:
             df['Commodity code']=df['Commodity code'].apply(lambda x : ('{:0>'+str(fill_zero_bit)+'d}').format(x))
     except:pass
+    """
 
     # add date column
     date = re.findall("20\d{2}_\d{1,2}",f)[0] #year_startMonth_endMonth
