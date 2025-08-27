@@ -65,11 +65,11 @@ def run(playwright):
     )
     context.set_default_timeout(30000)  
     # 设置导航相关操作超时 20 秒（例如 page.goto、page.wait_for_url）
-    context.set_default_navigation_timeout(30000)
+    context.set_default_navigation_timeout(60000) 
     # context.add_init_script(path="stealth.min.js")
     page = context.new_page()
     
-    page.goto("http://www.customs.gov.cn/customs/302249/zfxxgk/2799825/302274/302277/4185050/index.html")
+    page.goto("http://www.customs.gov.cn/customs/302249/zfxxgk/2799825/302274/302277/4185050/index.html",wait_until="domcontentloaded")
     page.wait_for_timeout(5000)
     page.locator("""xpath=(//div[@class="tjYear"]//a)[1]""").click() ##  click the latest year
     page.wait_for_timeout(5000)
@@ -85,7 +85,7 @@ def run(playwright):
     print(files)
     for f in files.keys():
         for l in files[f]["link"]:
-            page.goto(l)
+            page.goto(l,wait_until="domcontentloaded")
             page.wait_for_timeout(5000)
 
             fullTitle = page.locator(f"""xpath=//h2[contains(.,"{f}")]""").inner_text()
