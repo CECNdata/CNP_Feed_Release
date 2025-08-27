@@ -32,7 +32,7 @@ else:
 for file in files.keys():
     files[file]["xpath"]=[]
     for currency_index in ["1","2"]:
-        files[file]["xpath"].append(f"""((//td[contains(text(),"{file}")])[{currency_index}]/..//a[@href and text()='{month_str}月'])""")
+        files[file]["xpath"].append(f"""((//td[contains(text(),"{file}")])[{currency_index}]/..//a[@href and text()='{diy_month}月'])""")
 
 ##for title in ["进口商品类章金额表","出口商品类章金额表"]:
 ##    for currency_index in ["1","2"]:
