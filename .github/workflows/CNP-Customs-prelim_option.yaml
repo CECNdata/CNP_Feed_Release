@@ -10,7 +10,7 @@ on:
       month:
         description: "Month value"
         required: true
-        default: "08"
+        default: "1"
 
 permissions: write-all
 

@@ -24,7 +24,7 @@ import re
 year_str = os.getenv("year")
 month_str = os.getenv("month")
 if month_str and month_str.isdigit():
-    diy_month = str(int(month_str))
+    diy_month = str(month_str).lstrip("0") or "0"
 else:
     diy_month = "1"   # 给个默认值，比如 1 月
 
