@@ -26,8 +26,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          curl https://raw.githubusercontent.com/CECNdata/CNP_Feed_Release/main/download_prelim_main.py -o download.py
-          curl -O https://cdn.jsdelivr.net/gh/requireCool/stealth.min.js/stealth.min.js
+          curl https://raw.githubusercontent.com/CECNdata/CNP_Feed_Release/main/download_prelim_main_option.py -o download.py
+          # curl -O https://cdn.jsdelivr.net/gh/requireCool/stealth.min.js/stealth.min.js
           sudo apt-get install sshpass -y
           pip install pipreqs
           pipreqs .
