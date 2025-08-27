@@ -34,7 +34,7 @@ jobs:
       - name: download
         continue-on-error: true
         run: |
-          DEBUG=pw:api timeout 1800 xvfb-run python download.py || DEBUG=pw:api timeout 1800 python download.py 2&>1
+          DEBUG=pw:api timeout 1800 xvfb-run python download.py || DEBUG=pw:api timeout 1800 xvfb-run python download.py 2&>1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

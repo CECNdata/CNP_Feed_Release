@@ -59,10 +59,13 @@ def save(page,fullTitle,filename):
 def run(playwright):
     browser = playwright.firefox.launch(headless=False)
     context = browser.new_context(
-        viewport={"width": 1920, "height": 1080},
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 "
-                   "Safari/537.36"
+        # viewport={"width": 1920, "height": 1080},
+        # user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 "
+        #            "Safari/537.36"
     )
+    context.set_default_timeout(30000)  
+    # 设置导航相关操作超时 20 秒（例如 page.goto、page.wait_for_url）
+    context.set_default_navigation_timeout(30000)
     # context.add_init_script(path="stealth.min.js")
     page = context.new_page()
     
