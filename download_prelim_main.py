@@ -63,7 +63,7 @@ def run(playwright):
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 "
                    "Safari/537.36"
     )
-    context.add_init_script(path="stealth.min.js")
+    # context.add_init_script(path="stealth.min.js")
     page = context.new_page()
     
     page.goto("http://www.customs.gov.cn/customs/302249/zfxxgk/2799825/302274/302277/4185050/index.html")
@@ -79,6 +79,7 @@ def run(playwright):
             l=urljoin("http://www.customs.gov.cn/",l)
             files[f]["link"].append(l)
 
+    print(files)
     for f in files.keys():
         for l in files[f]["link"]:
             page.goto(l)
