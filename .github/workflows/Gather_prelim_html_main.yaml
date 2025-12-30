@@ -12,7 +12,7 @@ on:
    - cron: '*/30 * * * *'
 
 env:
-  github_repo: "https://github.com/CECNdata/cnCustom_atp_prelim/tree/main/prelim_main"
+  github_repo: "https://github.com/CECNdata/cnCustom_atp_prelim"
 
 permissions: write-all
 
