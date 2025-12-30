@@ -42,7 +42,7 @@ jobs:
           path: "*.html"
           retention-days: 7
 
-          - name: Check generated files
+      - name: Check generated files
         run: |
           UPLOAD_FOLDER="$(pwd)"
           cd "${UPLOAD_FOLDER}"
