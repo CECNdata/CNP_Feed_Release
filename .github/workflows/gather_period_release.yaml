@@ -1,0 +1,73 @@
+name: 'Gather_Period_release'
+
+on:
+  workflow_dispatch:
+  #schedule:
+  #  - cron: '*/30 0-10 19-22 * *'
+
+env:
+  zip: CNP_Feed_Release-main_
+
+permissions: write-all
+
+jobs:
+  GatherPeriod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install sshpass -y
+          pip install pipreqs
+          pipreqs .
+          pip install -r requirements.txt
+          rm requirements.txt
+
+      - name: Do the gather
+        run: |
+          git clone https://github.com/CECNdata/CNP_Feed_Test.git tmp
+          for file in `ls -d tmp/*Customs*`;do (base_dir=${file} python3 gather_period.py);done
+          rm -rf tmp
+
+      - name: FTP upload
+        run: |
+          export filename=${{ env.zip }}$(TZ=UTC-8 date +%Y%m).zip
+          zip -r ${filename} *.csv 
+          echo "put ${filename} ${{ secrets.FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2)
+          #rm -rf ${filename} &> /dev/null
+
+      - name: FTP upload twice
+        run: |
+          export filename=${{ env.zip }}$(TZ=UTC-8 date +%Y%m).zip
+          #zip -r ${filename} *.csv 
+          echo "put ${filename} ${{ secrets.FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2)
+          #rm -rf ${filename} &> /dev/null
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-data
+          path: ${{ env.zip }}.zip
+          retention-days: 7
+          
+      #- name: Commit report
+        #continue-on-error: true
+        #run: |
+          #git config --global user.name 'github-actions[bot]'
+          #git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          #git checkout --orphan latest_branch
+          #git add -A
+          #git commit -am "init report"
+          #git branch -D main
+          #git branch -m main
+          #git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          #git push -f origin main
+

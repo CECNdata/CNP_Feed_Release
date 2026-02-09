@@ -1,0 +1,89 @@
+name: Playwright Capture Debug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    env:
+      DEBUG: "pw:browser*"
+    steps:
+    
+      - name: Setup WARP(get ipv6)
+        uses: fscarmen/warp-on-actions@v1.4
+        
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright and Firefox
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install firefox
+
+      - name: Run Playwright script with debug + xvfb + socks5 proxy
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python - <<'EOF'
+          import asyncio
+          import time
+          from playwright.async_api import async_playwright
+
+          URL = "http://www.customs.gov.cn/customs/302249/zfxxgk/2799825/302274/302277/4185050/index.html"
+
+          PROXY = {
+              "server": "socks5://arch.v6.eloco.eu.org:7891"
+          }
+
+          async def main():
+              async with async_playwright() as p:
+                  browser = await p.firefox.launch(
+                      headless=False,
+                      proxy=PROXY
+                  )
+
+                  context = await browser.new_context(
+                      user_agent=(
+                          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/120.0.0.0 Safari/537.36"
+                      )
+                  )
+
+                  page = await context.new_page()
+
+                  # 监听页面日志，便于排错
+                  page.on("console", lambda msg: print(f"[PAGE {msg.type}] {msg.text}"))
+                  page.on("pageerror", lambda err: print(f"[PAGE ERROR] {err}"))
+
+                  await page.goto(URL, wait_until="networkidle")
+                  await page.wait_for_timeout(10_000)  # 再等 10 秒
+
+                  # 滚动触发懒加载（非常关键）
+                  await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                  await page.wait_for_timeout(5_000)
+
+                  # 保存 HTML
+                  with open("page.html", "w", encoding="utf-8") as f:
+                      f.write(await page.content())
+
+                  # 截图
+                  await page.screenshot(path="page.png", full_page=True)
+
+                  await browser.close()
+
+          asyncio.run(main())
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: customs_page
+          path: |
+            page.html
+            page.png

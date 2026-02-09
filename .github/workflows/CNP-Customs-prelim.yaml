@@ -1,0 +1,172 @@
+name: 'CNP-Customs-prelim'
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_upload:
+        description: "强制上传（true / false）"
+        required: false
+        default: "false"
+
+  #schedule:
+  #  - cron: '0 */4 18-25 * *'
+
+env:
+  docker_image: ghcr.io/cecndata/ga-sec:latest
+  #MY_PROXY: ${{ secrets.DEMO_IPV6_STRING }}  # 直接在 env 块里设置代理
+    
+permissions: write-all
+
+jobs:
+  Download:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Setup WARP(get ipv6)
+        uses: fscarmen/warp-on-actions@v1.4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Check IPv6 support
+        run: |
+          echo "=== IPv6 addresses ==="
+          ip -6 addr show || true
+          echo "=== IPv6 ping test ==="
+          ping -6 -c 3 ipv6.google.com || echo "Ping google failed"
+          ping -6 -c 3 arch.v6.eloco.eu.org || echo "Ping arch failed"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
+      - name: Get Docker image digest
+        id: docker-digest
+        run: |
+          DIGEST=$(docker manifest inspect ${{ env.docker_image }} --verbose | jq -r '.Descriptor.digest')
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v3
+        id: docker-cache
+        with:
+          path: /tmp/ga-sec_latest.tar
+          key: ga-sec-latest-${{ steps.docker-digest.outputs.digest }}
+          restore-keys: |
+            ga-sec-latest-
+      - if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: |
+            docker pull ${{ env.docker_image }}
+            docker save ${{ env.docker_image }} -o /tmp/ga-sec_latest.tar
+      - if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/ga-sec_latest.tar
+      - name: Export all GitHub env to Docker env file
+        run: |
+          env > /tmp/github_env.list
+
+
+      - name: Install dependencies
+        run: |
+          mkdir -p ${{ github.workspace }}/feed
+          curl -L https://raw.githubusercontent.com/CECNdata/CNP_Feed_Release/main/download_prelim_main.py \
+               -o ${{ github.workspace }}/feed/download.py
+          sudo apt-get install sshpass -y
+
+      - name: Run customs download in Docker
+        run: |
+          docker run --rm \
+            --network host \
+            --env-file /tmp/github_env.list \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace/feed \
+            ${{ env.docker_image }} \
+            timeout 1800 python download.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-latest-data
+          path: "*.html"
+          retention-days: 7
+
+      - name: Check generated files
+        run: |
+          UPLOAD_FOLDER="$(pwd)"
+          cd "${UPLOAD_FOLDER}"
+          echo "Files to upload:"
+          ls *.html
+          
+      - name: Restore MD5 cache
+        if: github.event.inputs.force_upload != 'true'
+        uses: actions/cache@v3
+        id: md5-cache
+        with:
+          path: md5-cache/old_md5.txt
+          key: md5-cache-${{ github.workflow }}-${{ github.job }}
+          restore-keys: |
+            md5-cache-${{ github.workflow }}
+        continue-on-error: true
+
+      - name: Deduplicate files by md5
+        run: |
+          set -e
+          cd "$upload_folder"
+          MD5_CACHE_FILE="${{ github.workspace }}/md5-cache/old_md5.txt"
+          
+          
+          echo "1️⃣ 检查旧 MD5 cache 是否存在"
+          if [ ! -f "$MD5_CACHE_FILE" ]; then
+            echo "❌ No previous md5 cache, Generate empty old_md5"
+            mkdir -p "$(dirname "$MD5_CACHE_FILE")"
+            touch "$MD5_CACHE_FILE"
+          else
+            echo "✅ already exist old MD5 cache：$MD5_CACHE_FILE"
+            # cat "$MD5_CACHE_FILE"
+          fi
+          echo "2️⃣ 检查上传目录是否有文件"
+          if [ -z "$(ls -A .)" ]; then
+            echo "No files found, skip"
+            exit 0
+          fi
+          
+          echo "3️⃣ 生成 current_md5.txt 临时文件"
+          CURRENT_MD5_TMP="$(mktemp)"
+          for file in *; do
+            [ -f "$file" ] || continue
+            md5sum "$file" | awk '{print $1}' >> "$CURRENT_MD5_TMP"
+          done
+          sort -u "$CURRENT_MD5_TMP" -o "$CURRENT_MD5_TMP"
+          
+          # echo "Current MD5 list:"
+          # cat "$CURRENT_MD5_TMP"
+          
+          echo "4️⃣ 读取 old_md5.txt 并删除重复文件"
+          sort -u "$MD5_CACHE_FILE" -o "$MD5_CACHE_FILE"
+          for file in *; do
+              [ -f "$file" ] || continue
+              md5=$(md5sum "$file" | awk '{print $1}')
+              if grep -qx "$md5" "$MD5_CACHE_FILE"; then
+                  echo "Remove duplicated file: $file"
+                  rm -f "$file"
+              fi
+          done
+          
+          # ✅ 正确写入 old_md5.txt
+          cat "$CURRENT_MD5_TMP" > "$MD5_CACHE_FILE"
+          
+          echo "Remaining files after deduplication:"
+          ls -alh
+          
+          # 删除临时文件
+          rm -f "$CURRENT_MD5_TMP"
+          
+      - name: FTP upload
+        continue-on-error: true
+        run: |
+          sudo chmod -R 777 feed/download ; cd feed/download ; for filename in `ls *.html`;do ( echo "put ${filename} ${{ secrets.Prelim_FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2) );done
+          
+      - name: FTP upload second
+        run: |
+          sudo chmod -R 777 feed/download ; cd feed/download ; for filename in `ls -d *.html`;do ( echo "put ${filename} ${{ secrets.Prelim_FTP_PATH }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa" -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2) );done

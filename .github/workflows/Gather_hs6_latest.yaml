@@ -1,0 +1,135 @@
+name: 'Gather_hs6_latest'
+
+on:
+  workflow_dispatch:
+    inputs:
+      month_range:
+        description: 'Month range for the upload'
+        required: false
+        default: '3'
+      force_upload:
+        description: "强制上传（true / false）"
+        required: false
+        default: "false"
+  schedule:
+    - cron: '*/30 * * * *'
+
+
+env:
+  fill_zero_bit: 6
+  mappings_path: "./tmp/mappings.json"
+  github_repo: "https://github.com/CECNdata/CNP_feed_HS46_all.git"
+  month_range: ${{ github.event.inputs.month_range }}
+
+permissions: write-all
+
+jobs:
+  Gather:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install sshpass zsh -y
+          pip install pipreqs
+          pipreqs .
+          pip install -r requirements.txt
+          rm requirements.txt
+      - name: Do the gather
+        run: |
+          export month_range="${month_range:-3}"
+          git clone ${github_repo} tmp
+          for file in `ls -d tmp/*Customs*HS6*`;do (base_dir=${file} python3 gather_period_hs46.py);done
+          ls -la ./
+          for f in *Customs*HS6*; do mv "$f" "$(echo "$f" | sed -E 's/CNP-Customs-total-HS6-(export|import)-(RMB|USD)_([0-9]{4})_([0-9]{2})\.csv/hs6_\L\2\E_\1_all_\3\4\4_001.csv/' | sed -E 's/export/exp/; s/import/imp/;')"; done
+          ls -la ./
+
+      - name: Check generated files
+        run: |
+          UPLOAD_FOLDER="$(pwd)"
+          cd "${UPLOAD_FOLDER}"
+          echo "Files to upload:"
+          ls *.csv
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-latest-data
+          path: "*.csv"
+          retention-days: 7
+
+      - name: Restore MD5 cache
+        if: github.event.inputs.force_upload != 'true'
+        uses: actions/cache@v3
+        id: md5-cache
+        with:
+          path: md5-cache/old_md5.txt
+          key: md5-cache-${{ github.workflow }}-${{ github.job }}
+          restore-keys: |
+            md5-cache-${{ github.workflow }}
+        continue-on-error: true
+
+      - name: Deduplicate files by md5
+        run: |
+          set -e
+          cd "$upload_folder"
+          MD5_CACHE_FILE="${{ github.workspace }}/md5-cache/old_md5.txt"
+          echo "1️⃣ 检查旧 MD5 cache 是否存在"
+          if [ ! -f "$MD5_CACHE_FILE" ]; then
+            echo "❌ No previous md5 cache, Generate empty old_md5"
+            mkdir -p "$(dirname "$MD5_CACHE_FILE")"
+            touch "$MD5_CACHE_FILE"
+          else
+            echo "✅ already exist old MD5 cache：$MD5_CACHE_FILE"
+            # cat "$MD5_CACHE_FILE"
+          fi
+          echo "2️⃣ 检查上传目录是否有文件"
+          if [ -z "$(ls -A .)" ]; then
+            echo "No files found, skip"
+            exit 0
+          fi
+          echo "3️⃣ 生成 current_md5.txt 临时文件"
+          CURRENT_MD5_TMP="$(mktemp)"
+          for file in *; do
+            [ -f "$file" ] || continue
+            md5sum "$file" | awk '{print $1}' >> "$CURRENT_MD5_TMP"
+          done
+          sort -u "$CURRENT_MD5_TMP" -o "$CURRENT_MD5_TMP"
+          # echo "Current MD5 list:"
+          # cat "$CURRENT_MD5_TMP"
+          echo "4️⃣ 读取 old_md5.txt 并删除重复文件"
+          sort -u "$MD5_CACHE_FILE" -o "$MD5_CACHE_FILE"
+          for file in *; do
+              [ -f "$file" ] || continue
+              md5=$(md5sum "$file" | awk '{print $1}')
+              if grep -qx "$md5" "$MD5_CACHE_FILE"; then
+                  echo "Remove duplicated file: $file"
+                  rm -f "$file"
+              fi
+          done
+          # ✅ 正确写入 old_md5.txt
+          cat "$CURRENT_MD5_TMP" > "$MD5_CACHE_FILE"
+          echo "Remaining files after deduplication:"
+          ls -alh
+          # 删除临时文件
+          rm -f "$CURRENT_MD5_TMP"
+          
+      - name: FTP upload
+        continue-on-error: true
+        shell: zsh {0}
+        run: |
+            SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "StrictHostKeyChecking=no" ${{ secrets.FTP }} <<< $'mkdir ${{ secrets.HS4_6_ALL }}/data\ncd ${{ secrets.HS4_6_ALL }}/data\nmput *.csv\nbye'
+            
+      - name: FTP upload twice
+        continue-on-error: true
+        shell: zsh {0}
+        run: |
+            SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "StrictHostKeyChecking=no" ${{ secrets.FTP }} <<< $'mkdir ${{ secrets.HS4_6_ALL }}/data\ncd ${{ secrets.HS4_6_ALL }}/data\nmput *.csv\nbye'

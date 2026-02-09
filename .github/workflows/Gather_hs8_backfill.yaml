@@ -1,0 +1,61 @@
+name: 'Gather_hs8_backfill'
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+
+env:
+  zip: CNP_8_history
+  fill_zero_bit: 8
+  mappings_path: "./tmp/mappings.json"
+  github_repo: "https://github.com/CECNdata/CNP_feed_HS8_all.git"
+
+permissions: write-all
+
+jobs:
+  Gather:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install sshpass -y
+          pip install pipreqs
+          pipreqs .
+          pip install -r requirements.txt
+          rm requirements.txt
+      - name: Do the gather
+        run: |
+          git clone ${github_repo} tmp
+          for file in `ls -d tmp/*Customs*`;do (base_dir=${file} python3 gather.py);done
+          ls -la ./
+          
+      - name: FTP upload
+        continue-on-error: true
+        run: |
+          export filename=${{ env.zip }}.zip
+          zip -r ${filename} *.csv 
+          echo "put ${filename} ${{ secrets.CNP_8_HISTORY }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa"  -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2)
+
+      - name: FTP upload twice
+        continue-on-error: true
+        run: |
+          export filename=${{ env.zip }}.zip
+          echo "put ${filename} ${{ secrets.CNP_8_HISTORY }}" |  SSHPASS='${{ secrets.FTP_PASS }}' sshpass -e sftp -P ${{ secrets.FTP_PORT }} -o "HostKeyAlgorithms=+ssh-rsa"  -o "StrictHostKeyChecking=no" ${{ secrets.FTP }}  2> >(grep -v "ftp" 1>&2)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gathered-data
+          path: ${{ env.zip }}.zip
+          retention-days: 7
