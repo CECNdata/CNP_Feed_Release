@@ -82,7 +82,7 @@ def run(playwright):
     
     page.goto("http://www.customs.gov.cn/customs/302249/zfxxgk/2799825/302274/302277/4185050/index.html",wait_until="domcontentloaded")
     page.wait_for_timeout(5000)
-    page.locator("""xpath=(//div[@class="tjYear"]//a)[1]""").click() ##  click the latest year
+    page.locator("""xpath=(//li/a[contains(text(),'20')])[1]""").click() ##  click the latest year
     page.wait_for_timeout(5000)
 
     from urllib.parse import urljoin
