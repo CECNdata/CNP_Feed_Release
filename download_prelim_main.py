@@ -99,7 +99,8 @@ def run(playwright):
             page.goto(l,wait_until="domcontentloaded")
             page.wait_for_timeout(5000)
 
-            fullTitle = page.locator(f"""xpath=//h2[contains(.,"{f}")]""").inner_text()
+            fullTitle = page.locator(f"""//div[@class='news_detail_tit']/*[self::h1 or self::h2]
+""").inner_text()
             try:
                 save(page,fullTitle,files[f]["filename"])
             except Exception as e:
